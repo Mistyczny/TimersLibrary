@@ -1,5 +1,5 @@
-#include <catch2/catch.hpp>
 #include "Timers.hpp"
+#include <catch2/catch.hpp>
 #include <iostream>
 
 using namespace Timers;

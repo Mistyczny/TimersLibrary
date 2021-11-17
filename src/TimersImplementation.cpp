@@ -1,5 +1,5 @@
-#include "Timers.hpp"
-#include <utility>
+#include "Internal/TimersImplementation.hpp"
+#include "Internal/TimersManager.hpp"
 
 namespace Timers {
 
@@ -66,17 +66,70 @@ void Timer::setExpirationTimePoint(std::chrono::high_resolution_clock::time_poin
 }
 
 /**
+ * @brief - Set timer running variable
+ */
+void Timer::setRunningState(const bool& newState) { this->running = newState; }
+
+/**
+ * @brief - Send add action to timer's thread, and wait until it's started
+ */
+void Timer::start() {
+    if (this->running) {
+        return;
+    } else {
+        std::promise<int> returnCode{};
+        auto future = returnCode.get_future();
+        auto timerReadyCallback = [this, &returnCode](int retCode, bool newRunningState) {
+            returnCode.set_value(retCode);
+            this->setRunningState(newRunningState);
+        };
+        TimersManager::addTimer(shared_from_this(), timerReadyCallback);
+        future.get();
+    }
+}
+
+/**
+ * @brief - Send add action to timer's thread, and continue execution
+ */
+void Timer::startAsync() {
+    if (this->running) {
+        return;
+    } else {
+        TimersManager::addTimer(shared_from_this(), nullptr);
+    }
+}
+
+/**
+ * @brief - Send stop action to timer's thread
+ */
+void Timer::stop() {
+    if (!this->running) {
+        return;
+    } else {
+        TimersManager::eraseTimer(shared_from_this());
+        while (this->running) {
+            std::this_thread::yield();
+        }
+    }
+}
+
+/**
+ * @brief - Get duration
+ */
+std::chrono::high_resolution_clock::duration Timer::getDuration() const { return this->duration; }
+
+/**
  * @brief - One shot timer constructor
  * @param callback - Callback function called on timer expiration
  */
-OneshotTimer::OneshotTimer(std::function<void()> callback) : Timer(std::move(callback)) {}
+OneShotTimer::OneShotTimer(std::function<void()> callback) : Timer(std::move(callback)) {}
 
 /**
  * @brief - One shot timer constructor
  * @param callback - Callback function called on timer expiration
  * @param duration - Duration of timer ticking
  */
-OneshotTimer::OneshotTimer(std::function<void()> callback, std::chrono::high_resolution_clock::duration duration)
+OneShotTimer::OneShotTimer(std::function<void()> callback, std::chrono::high_resolution_clock::duration duration)
     : Timer(std::move(callback), duration) {}
 
 /**
@@ -84,14 +137,14 @@ OneshotTimer::OneshotTimer(std::function<void()> callback, std::chrono::high_res
  * @param callback - Callback function called on timer expiration
  * @param expirationTime - Point in time in which timer should expire
  */
-OneshotTimer::OneshotTimer(std::function<void()> callback, std::chrono::high_resolution_clock::time_point expirationTime)
+OneShotTimer::OneShotTimer(std::function<void()> callback, std::chrono::high_resolution_clock::time_point expirationTime)
     : Timer(std::move(callback), expirationTime) {}
 
 /**
  * @brief - Executes callback function
  * @return - Always return delete code for one shot timer
  */
-Timer::CallbackAction OneshotTimer::run() {
+Timer::CallbackAction OneShotTimer::run() {
     if (this->callback) {
         this->callback();
     } else {
@@ -123,9 +176,9 @@ RepeatableTimer::RepeatableTimer(std::function<void()> callback, std::chrono::hi
     : Timer(std::move(callback), expirationTime) {}
 
 /**
-     * @brief - Executes callback function
-     * @return - Always return none code for repeatable timer
-     */
+ * @brief - Executes callback function
+ * @return - Always return none code for repeatable timer
+ */
 Timer::CallbackAction RepeatableTimer::run() {
     expirationCount++;
     if (this->callback) {
@@ -134,8 +187,6 @@ Timer::CallbackAction RepeatableTimer::run() {
     return CallbackAction::NONE;
 }
 
-uint32_t RepeatableTimer::getExpirationsCount() const {
-    return this->expirationCount;
-}
+uint32_t RepeatableTimer::getExpirationsCount() const { return this->expirationCount; }
 
 } // namespace Timers

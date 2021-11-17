@@ -1,10 +1,12 @@
 #pragma once
 #include <exception>
+#include <utility>
+#include <string>
 
 namespace Timers {
 
-class InitializationError : std::exception {
-private:
+class TimersManagerError  : std::exception {
+protected:
     std::string msg{};
 
 public:
@@ -15,16 +17,16 @@ public:
      *                 Hence, responsibility for deleting the char* lies
      *                 with the caller.
      */
-    explicit InitializationError(const char* message) : msg(message) {}
+    explicit TimersManagerError(const char* message) : msg(message) {}
     /**
      * @brief - Constructor (C++ STL strings).
      * @param message The error message.
      */
-    explicit InitializationError(const std::string& message) : msg(message) {}
+    explicit TimersManagerError(std::string message) : msg(std::move(message)) {}
     /**
      * @brief - Destructor, Virtual to allow for subclassing.
      */
-    ~InitializationError() noexcept override = default;
+    ~TimersManagerError() noexcept override = default;
     /**
      * @brief - Returns a pointer to the (constant) error description.
      * @return - A pointer to a const char*. The underlying memory
@@ -32,6 +34,27 @@ public:
      *          not attempt to free the memory.
      */
     [[nodiscard]] const char* what() const noexcept override { return msg.c_str(); }
+};
+
+class TimersManagerInitializationError : TimersManagerError {
+public:
+    /**
+     * @brief - Constructor ( C String)
+     * @param message - C-style string error message.
+     *                 The string contents are copied upon construction.
+     *                 Hence, responsibility for deleting the char* lies
+     *                 with the caller.
+     */
+    explicit TimersManagerInitializationError(const char* message) : TimersManagerError(message) {}
+    /**
+     * @brief - Constructor (C++ STL strings).
+     * @param message The error message.
+     */
+    explicit TimersManagerInitializationError(const std::string& message) : TimersManagerError(message) {}
+    /**
+     * @brief - Destructor, Virtual to allow for subclassing.
+     */
+    ~TimersManagerInitializationError() noexcept override = default;
 };
 
 class TimerError : std::exception {
@@ -51,7 +74,7 @@ public:
      * @brief - Constructor (C++ STL strings).
      * @param message The error message.
      */
-    explicit TimerError(const std::string& message) : msg(message) {}
+    explicit TimerError(std::string  message) : msg(std::move(message)) {}
     /**
      * @brief - Destructor, Virtual to allow for subclassing.
      */

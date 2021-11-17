@@ -2,6 +2,9 @@
 #include <catch2/catch.hpp>
 #include <iostream>
 
+constexpr int DEFAULT_TIMER_VALUE = 5;
+constexpr int EXPECTED_TIMER_VALUE = 10;
+
 using namespace Timers;
 
 class Callback {
@@ -10,53 +13,46 @@ private:
 
 public:
     explicit Callback(int& val) : value{val} {}
-    void operator()() { value = 10; }
+    void operator()() { value = EXPECTED_TIMER_VALUE; }
 };
 
-class CallbackTwo {
-private:
-    int& value;
-
-public:
-    explicit CallbackTwo(int& val) : value{val} {
-        std::cout << "CREATED" << std::endl;
-    }
-    void run() { value = 10; }
-};
-
-TEST_CASE("Oneshot timer creation test", "[OneshotTimers") {
-    std::shared_ptr<Timer> timer{nullptr};
-    int timerValue = 5;
+TEST_CASE("One shot timer creation test", "[OneShotTimers") {
+    TimerPtr timer{nullptr};
+    int timerValue = DEFAULT_TIMER_VALUE;
 
     SECTION("Default") {
-        timer = std::make_shared<OneshotTimer>();
+        timer = makeOneShotTimer();
+        timer->setCallback([&timerValue]() { timerValue = EXPECTED_TIMER_VALUE; });
     }
-
     SECTION("Lambda callback") {
-        timer = std::make_shared<OneshotTimer>([&timerValue]() { timerValue = 10; });
+        timer = makeOneShotTimer([&timerValue]() { timerValue = EXPECTED_TIMER_VALUE; });
     }
-    SECTION("Functor callback") { timer = std::make_shared<OneshotTimer>(Callback(timerValue)); }
-    SECTION("Object call") {
-        CallbackTwo callbackTwo{timerValue};
-        timer = std::make_shared<OneshotTimer>(std::bind(&CallbackTwo::run, callbackTwo));
-    }
-
+    SECTION("Functor callback") { timer = makeOneShotTimer(Callback(timerValue)); }
     SECTION("Callback with expiration time point") {
-        std::chrono::high_resolution_clock::time_point firstExpiration = std::chrono::high_resolution_clock::now() + std::chrono::seconds(5);
+        auto firstExpiration = std::chrono::high_resolution_clock::now() + std::chrono::seconds(5);
+
+        SECTION("Lambda callback") {
+            timer = makeOneShotTimer([&timerValue]() { timerValue = EXPECTED_TIMER_VALUE; }, firstExpiration);
+        }
+        SECTION("Functor callback") { timer = makeOneShotTimer(Callback(timerValue), firstExpiration); }
+
+        REQUIRE(timer->getExpirationTimePoint() == firstExpiration);
     }
 
     REQUIRE(timer != nullptr);
+    REQUIRE(timerValue == 5);
+    REQUIRE(timer->getPriority() == 0);
 
-    // Validate if callback function works correctly
     timer->run();
-    REQUIRE(timerValue == 10);
+    REQUIRE(timerValue == EXPECTED_TIMER_VALUE);
 
-    // Priority setting
     timer->setPriority(5);
     REQUIRE(timer->getPriority() == 5);
 
-    // Expiration set
-    std::chrono::high_resolution_clock::time_point expiration = std::chrono::high_resolution_clock::now() + std::chrono::seconds(5);
+    auto expiration = std::chrono::high_resolution_clock::now() + std::chrono::seconds(5);
     timer->setExpirationTimePoint(expiration);
     REQUIRE(timer->getExpirationTimePoint() == expiration);
+
+    // It will throw as timer manager is not initialized
+    REQUIRE_THROWS(timer->start());
 }

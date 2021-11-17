@@ -2,6 +2,7 @@
 #include <chrono>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <utility>
 
 namespace Timers {
@@ -9,16 +10,31 @@ namespace Timers {
 /**
  * @brief - Interface class for timer's functionality
  */
-class Timer {
+class Timer : public std::enable_shared_from_this<Timer> {
+public:
+    static constexpr bool DEFAULT_TIMER_RUNNING = false;
+    static constexpr uint32_t DEFAULT_TIMER_PRIORITY = 0;
+
+private:
+    /**
+     * @brief - Set timer running variable
+     */
+    void setRunningState(const bool& newState);
+
 protected:
+    /**
+     * @brief - Indicates if is running or not
+     *          Timer should not be changed while it's running
+     */
+    bool running{DEFAULT_TIMER_RUNNING};
     /**
      * @brief - Priority of this timer, depending on it order of timers execuration is created
      */
-    uint32_t priority{};
+    uint32_t priority{DEFAULT_TIMER_PRIORITY};
     /**
      * @brief - Callback function called on timer expiration
      */
-    std::function<void()> callback;
+    std::function<void()> callback{nullptr};
     /**
      * @brief - Point of time in which timer started ticking ( default is timer creation time )
      */
@@ -90,34 +106,52 @@ public:
      * @param timePoint - new expiration time point
      */
     void setExpirationTimePoint(std::chrono::high_resolution_clock::time_point timePoint);
+    /**
+     * @brief - Get duration
+     */
+    std::chrono::high_resolution_clock::duration getDuration() const;
+    /**
+     * @brief - Timer start working
+     */
+    void start();
+    /**
+     * @brief - Timer start working
+     */
+    void startAsync();
+    /**
+     * @brief - Timer stop working
+     */
+    void stop();
 };
+
+#define TimerPtr std::shared_ptr<Timer>
 
 /**
  * @brief - Timer's class which are intended to be called only once
  */
-class OneshotTimer : public Timer {
+class OneShotTimer : public Timer {
 public:
     /**
      * @brief - Default one shot timer constructor
      */
-    OneshotTimer() = default;
+    OneShotTimer() = default;
     /**
      * @brief - One shot timer constructor
      * @param callback - Callback function called on timer expiration
      */
-    explicit OneshotTimer(std::function<void()> callback);
+    explicit OneShotTimer(std::function<void()> callback);
     /**
      * @brief - One shot timer constructor
      * @param callback - Callback function called on timer expiration
      * @param duration - Duration of timer ticking
      */
-    OneshotTimer(std::function<void()> callback, std::chrono::high_resolution_clock::duration duration);
+    OneShotTimer(std::function<void()> callback, std::chrono::high_resolution_clock::duration duration);
     /**
      * @brief - One shot timer constructor
      * @param callback - Callback function called on timer expiration
      * @param expirationTime - Point in time in which timer should expire
      */
-    OneshotTimer(std::function<void()> callback, std::chrono::high_resolution_clock::time_point expirationTime);
+    OneShotTimer(std::function<void()> callback, std::chrono::high_resolution_clock::time_point expirationTime);
     /**
      * @brief - Executes callback function
      * @return - Always return delete code for one shot timer
@@ -131,9 +165,9 @@ public:
 class RepeatableTimer : public Timer {
 protected:
     /**
-     * @brief - Expiration's counter, atomic for thread safety
+     * @brief - Expiration's counter
      */
-    std::atomic<uint32_t> expirationCount{};
+    uint32_t expirationCount{};
 
 public:
     RepeatableTimer() = default;

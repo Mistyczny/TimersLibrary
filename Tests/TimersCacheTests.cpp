@@ -1,5 +1,4 @@
 #include "Timers.hpp"
-#include "TimersCache.hpp"
 #include <catch2/catch.hpp>
 #include <chrono>
 #include <iostream>
@@ -17,7 +16,7 @@ TEST_CASE("TimersCache test", "[TimersCache") {
 
     std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
 
-    std::shared_ptr<Timer> timer_1 = std::make_shared<OneshotTimer>(Callback());
+    std::shared_ptr<Timer> timer_1 = std::make_shared<OneShotTimer>(Callback());
     timer_1->setExpirationTimePoint(now);
     timer_1->setPriority(1);
 
@@ -27,7 +26,7 @@ TEST_CASE("TimersCache test", "[TimersCache") {
 
     REQUIRE(timersCache.size() == 0);
     timersCache.registerTimer(timer_1);
-    timersCache.registerTimer(timer_1);
+    REQUIRE_THROWS(timersCache.registerTimer(timer_1));
     timersCache.registerTimer(timer_2);
     REQUIRE(timersCache.size() == 2);
 

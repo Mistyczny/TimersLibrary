@@ -1,5 +1,6 @@
 #pragma once
-#include "Timers.hpp"
+#include "Internal/TimersImplementation.hpp"
+#include <list>
 #include <map>
 #include <thread>
 
@@ -13,8 +14,14 @@ private:
     /**
      * @brief Multimap in which expiration time point is key
      */
-    std::multimap<std::chrono::high_resolution_clock::time_point, std::shared_ptr<Timer>> timers;
+    std::multimap<std::chrono::high_resolution_clock::time_point, std::shared_ptr<Timer>> m_timers;
 
+    /**
+     * @brief - Check if timer is registered
+     * @param timer - Timer to check
+     * @return - true if it is registered, false otherwise
+     */
+    bool isTimerRegistered(std::shared_ptr<Timer> timer);
 public:
     /**
      * @brief - If timer is not registered yet, add it to container
@@ -27,11 +34,9 @@ public:
      */
     void deleteTimer(std::shared_ptr<Timer> timer);
     /**
-     * @brief - Check if timer is registered
-     * @param timer - Timer to check
-     * @return - true if it is registered, false otherwise
+     * @brief - Restart timer in container
      */
-    bool isTimerRegistered(std::shared_ptr<Timer> timer);
+    void restartTimer(std::shared_ptr<Timer> timer);
     /**
      * @brief - Get number of registered timers in container
      * @return - number of timers

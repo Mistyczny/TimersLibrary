@@ -1,7 +1,9 @@
 #pragma once
-#include "Timers.hpp"
-#include "TimersCache.hpp"
-#include "TimersRunner.hpp"
+#include "Internal/TimersActionsQueue.hpp"
+#include "Internal/TimersCache.hpp"
+#include "Internal/TimersImplementation.hpp"
+#include "Internal/TimersLogger.hpp"
+#include "Internal/TimersRunner.hpp"
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -42,15 +44,23 @@ private:
     /**
      * @brief - Timers thread controller
      */
-    TimersThreadControl timersThreadControl{};
+    ThreadControl m_threadControl{};
     /**
      * @brief - Timers container
      */
     TimersCache timersCache{};
     /**
+     * @brief - All actions are processed by this module
+     */
+    ActionsQueue actionsQueue{m_threadControl, timersCache};
+    /**
      * @brief - Thread on which timers are ticking
      */
     std::thread timersThread{};
+    /**
+     * @brief - Logger instance
+     */
+    std::shared_ptr<Logger> logger{nullptr};
 
 public:
     /**
@@ -62,10 +72,14 @@ public:
      */
     TimersManager& operator=(const TimersManager&) = delete;
     /**
-     * @brief - Initialize TimersManager Singlegon
-     * @return - true, if initialization success, false otherwise
+     * @brief - Initialize TimersManager Singleton
      */
-    static bool initialize();
+    static void initialize();
+    /**
+     * @brief - Check if Timers Manager is initialized
+     */
+    static bool isInitialized();
+
     /**
      * @brief - Returns if timers thread is running
      * @return - true, if timers thread is running, false otherwise
@@ -83,17 +97,16 @@ public:
      * @brief - Register new timer
      * @param timer - timer to register
      */
-    static void addTimer(std::shared_ptr<Timer> timer);
-    /**
-     * @brief - Register new timers
-     * @param timers - List of timers to register
-     */
-    static void addTimers(std::initializer_list<std::shared_ptr<Timer>> timers);
+    static void addTimer(std::shared_ptr<Timer> timer, std::function<void(uint8_t retCode, bool newRunningState)> fnc);
     /**
      * @brief - Remove timer
-     * @param timer - timer to remove
+     * @param timer - timer to erase
      */
     static void eraseTimer(std::shared_ptr<Timer> timer);
+    /**
+     * @brief - Set logger instance
+     */
+    static void setLogger(std::shared_ptr<Logger>);
 };
 
 } // namespace Timers
